@@ -23,8 +23,9 @@ The following libraries are required:
 - `pyarrow` (required engine for reading `.parquet` files with column filtering)
 - `netCDF4`
 
-To install the dependencies:
 ```bash
+To install the dependencies:
+
 pip install -r requirements.txt
 
 ##Expected Directory & Data Setup
@@ -51,8 +52,6 @@ REGION_TO_TEST: Target spatial domain ("all", "west", or "east" Crete).
 
 ##Execution
 Run the script directly from the terminal or your preferred Python IDE (e.g., Spyder, VS Code):
-
-Bash
 python track_analysis.py
 
 ##Author & Institutional Affiliation
