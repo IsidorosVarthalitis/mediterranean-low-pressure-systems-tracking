@@ -3,8 +3,8 @@ An automated, objective computational framework developed in Python examining wh
 ---
 
 ## Key Features & Statistical Pipeline
-- **Spatiotemporal Coupling:** Automates matching between ERA5 high-resolution precipitation extremes and synoptic tracking points.
-- **Hybrid Optimization Score:** Balances spatial distance to Crete with moisture convergence (VIMDF).
+- **Spatiotemporal Coupling:** Automates matching between ERA5 high-resolution precipitation data and synoptic system tracks points.
+- **Hybrid Score:** Balances spatial distance to Crete with moisture convergence (VIMDF).
 - **Statistical Significance Testing:**
   - Non-parametric bootstrapping (2,000 iterations) for trend estimation and 95% Confidence Intervals (CI).
   - Permutation testing (1,000 resamples) for rigorous null-hypothesis validation.
