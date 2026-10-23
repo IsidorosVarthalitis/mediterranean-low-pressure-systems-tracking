@@ -78,8 +78,8 @@ python mediterranean-low-pressure-systems-tracking.py
 ---
 
 ## Notes & Limitations
-- With `TOP_N = 3`, the three centres selected at the same time step belong to different tracks but to the same precipitation event; possible correlation between them is not modelled by the track-level bootstrap, so Top-3 confidence intervals may be slightly narrow.
-- The 1960–1975 period lies entirely before the satellite era (1979), when ERA5 assimilates fewer observations; the modern trend (1976–2024) is less affected by this.
+- With `TOP_N = 3`, the three centres selected at the same time step belong to different tracks but to the same precipitation event, possible correlation between them is not modelled by the track-level bootstrap, so Top-3 confidence intervals may be slightly narrow.
+- The 1960–1975 period lies entirely before the satellite era (1979), when ERA5 assimilates fewer observations, the modern trend (1976–2024) is less affected by this.
 - Because centres are selected by proximity to Crete, the estimated shift describes the systems that produce rainfall over Crete and may be smaller than a shift of the full cyclone population.
 
 ---
