@@ -4,7 +4,7 @@ An automated, objective computational framework developed in Python examining wh
 
 ## Key Features & Statistical Pipeline
 - **Spatiotemporal Coupling:** Automates matching between ERA5 high-resolution precipitation data and synoptic system tracks points.
-- **Hybrid Score:** Balances spatial distance to Crete (cos(lat)-corrected) with moisture convergence (VIMDF). Cases where MFD is unavailable fall back to distance only and are counted and reported.
+- **Hybrid Score:** Balances spatial distance to Crete (cos(lat)-corrected) with moisture convergence. Cases where MFD is unavailable fall back to distance only and are counted and reported.
 - **Track-Aware Uncertainty (SyCLoPS Track ID, `TID`):** Consecutive 3-hourly positions of the same cyclone are not independent, so all uncertainty estimates treat each SyCLoPS track as one cluster:
   - Cluster-robust (CR1) standard error of each period's mean latitude.
   - Block bootstrap resampling whole tracks (2,000 iterations) for the full (1960–2024) and modern (1976–2024) trends, with 95% Confidence Intervals and two-sided p-values (H0: shift = 0).
