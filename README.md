@@ -89,4 +89,4 @@ python mediterranean-low-pressure-systems-tracking.py
 - **Author:** Isidoros Varthalitis
 - **Academic Context:** Diploma Thesis Research (Integrated Master)
 - **Institution:** Technical University of Crete (TUC)
-- **Department:** School of Environmental Engineering
+- **Department:** School of Chemical and Environmental Engineering
