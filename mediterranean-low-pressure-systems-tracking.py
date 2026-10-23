@@ -42,13 +42,24 @@ KM_PER_DEG = 111.12
 # Χρονική διάρκεια μεταξύ των μέσων των περιόδων (σε δεκαετίες)
 DECADES_FULL = (2016.0 - 1967.5) / 10.0  # 4.85 δεκαετίες
 DECADES_MODERN = (2016.0 - 1983.5) / 10.0  # 3.25 δεκαετίες
+N_BOOT = 2000
+
+
+def fmt_p(p, digits=4):
+  """p-value bootstrap: αν δεν βγει κανένα δείγμα ≤ 0 γράφεται p < 1/N_BOOT."""
+  if not np.isfinite(p):
+    return "n/a"
+  if p == 0.0:
+    return f"< {1.0 / N_BOOT:.4f}"
+  return f"= {p:.{digits}f}"
 
 
 # ==============================================================================
 # 2. ΣΥΝΑΡΤΗΣΗ ΑΝΑΚΤΗΣΗΣ ΚΥΚΛΩΝΩΝ (TOP-N SELECTION ΜΕ TID)
 # ==============================================================================
 def get_storm_centroids(period_label, sub_region="all", top_n=1):
-  local_fallback = 0
+  local_fallback = 0  # υποψήφια κέντρα χωρίς MFD
+  local_fallback_events = 0  # χρονικά βήματα (γεγονότα) με ≥1 κέντρο χωρίς MFD
   start_y, end_y = map(int, period_label.split("_"))
   all_files = [
       str(data_dir / f)
@@ -60,7 +71,7 @@ def get_storm_centroids(period_label, sub_region="all", top_n=1):
 
   if not all_files:
     print(f"Δεν βρέθηκαν αρχεία βροχής για: {period_label}")
-    return pd.DataFrame(), 0
+    return pd.DataFrame(), 0, 0
 
   rainy_times = []
   for file_path in all_files:
@@ -95,7 +106,7 @@ def get_storm_centroids(period_label, sub_region="all", top_n=1):
         f"Δεν βρέθηκαν υετικά γεγονότα > {THRESHOLD_RAIN} mm/h για:"
         f" {period_label}"
     )
-    return pd.DataFrame(), 0
+    return pd.DataFrame(), 0, 0
 
   # Διαβάζουμε και τη στήλη TID
   df_p = pd.read_parquet(
@@ -116,26 +127,45 @@ def get_storm_centroids(period_label, sub_region="all", top_n=1):
 
   if df_c.empty:
     print(f"Κανένας κυκλώνας εντός ορίων για: {period_label}")
-    return pd.DataFrame(), 0
+    return pd.DataFrame(), 0, 0
 
   final_responsible_cyclones = []
   cos_lat_crete = np.cos(np.radians(35.2))
 
-  for isotime, group in df_c.groupby("ISOTIME"):
-    year = int(isotime.year)
-    mfd_file_path = data_dir / f"era5_mfd_{year}.nc"
+  def distance_only(group_c):
+    """Fallback κατάταξη μόνο με απόσταση (όταν δεν υπάρχει αρχείο MFD)."""
+    d_lat = group_c["LAT"] - 35.2
+    d_lon = (group_c["LON"] - 25.0) * cos_lat_crete
+    group_c["dist"] = np.sqrt(d_lat**2 + d_lon**2)
+    return group_c.sort_values("dist", ascending=True).head(top_n)
 
-    group_c = group.copy().reset_index(drop=True)
-    scores = []
-
+  # Το αρχείο MFD κάθε έτους ανοίγει μία φορά (όχι ανά 3ωρο βήμα).
+  for year, df_year in df_c.groupby(df_c["ISOTIME"].dt.year):
+    mfd_file_path = data_dir / f"era5_mfd_{int(year)}.nc"
     try:
-      with xr.open_dataset(mfd_file_path) as ds_mfd:
-        t_n = "valid_time" if "valid_time" in ds_mfd.coords else "time"
-        lat_n = "latitude" if "latitude" in ds_mfd.coords else "lat"
-        lon_n = "longitude" if "longitude" in ds_mfd.coords else "lon"
+      ds_mfd = xr.open_dataset(mfd_file_path)
+      t_n = "valid_time" if "valid_time" in ds_mfd.coords else "time"
+      lat_n = "latitude" if "latitude" in ds_mfd.coords else "lat"
+      lon_n = "longitude" if "longitude" in ds_mfd.coords else "lon"
+      mfd_var_name = "vimdf" if "vimdf" in ds_mfd else "mfd"
+      mfd_da = ds_mfd[mfd_var_name]
+      is_lat_desc = ds_mfd[lat_n].values[0] > ds_mfd[lat_n].values[-1]
+    except Exception:
+      ds_mfd = None
 
-        mfd_var_name = "vimdf" if "vimdf" in ds_mfd else "mfd"
-        is_lat_desc = ds_mfd[lat_n].values[0] > ds_mfd[lat_n].values[-1]
+    if ds_mfd is None:
+      for isotime, group in df_year.groupby("ISOTIME"):
+        group_c = group.copy().reset_index(drop=True)
+        local_fallback += len(group_c)
+        local_fallback_events += 1
+        final_responsible_cyclones.append(distance_only(group_c))
+      continue
+
+    with ds_mfd:
+      for isotime, group in df_year.groupby("ISOTIME"):
+        group_c = group.copy().reset_index(drop=True)
+        scores = []
+        event_fallback = False
 
         for _, row in group_c.iterrows():
           c_lat, c_lon = row["LAT"], row["LON"]
@@ -153,8 +183,7 @@ def get_storm_centroids(period_label, sub_region="all", top_n=1):
 
           try:
             mfd_val = (
-                ds_mfd[mfd_var_name]
-                .sel({
+                mfd_da.sel({
                     t_n: isotime,
                     lat_n: lat_slice,
                     lon_n: slice(c_lon - 2.5, c_lon + 2.5),
@@ -171,27 +200,25 @@ def get_storm_centroids(period_label, sub_region="all", top_n=1):
           if not np.isfinite(mfd_val):
             mfd_val = 0.0
             local_fallback += 1
+            event_fallback = True
 
           convergence = -mfd_val
           hybrid_score = dist / (1.0 + max(0.0, convergence * 1000.0))
           scores.append(hybrid_score)
 
-      group_c["score"] = scores
-      group_c = group_c.sort_values("score", ascending=True)
-      final_responsible_cyclones.append(group_c.head(top_n))
-
-    except Exception:
-      local_fallback += len(group_c)
-      d_lat = group_c["LAT"] - 35.2
-      d_lon = (group_c["LON"] - 25.0) * cos_lat_crete
-      group_c["dist"] = np.sqrt(d_lat**2 + d_lon**2)
-      group_c = group_c.sort_values("dist", ascending=True)
-      final_responsible_cyclones.append(group_c.head(top_n))
+        local_fallback_events += int(event_fallback)
+        group_c["score"] = scores
+        group_c = group_c.sort_values("score", ascending=True)
+        final_responsible_cyclones.append(group_c.head(top_n))
 
   if final_responsible_cyclones:
     df_final_period = pd.concat(final_responsible_cyclones, ignore_index=True)
-    return df_final_period[["LAT", "LON", "ISOTIME", "TID"]].copy(), local_fallback
-  return pd.DataFrame(), 0
+    return (
+        df_final_period[["LAT", "LON", "ISOTIME", "TID"]].copy(),
+        local_fallback,
+        local_fallback_events,
+    )
+  return pd.DataFrame(), 0, 0
 
 
 # ==============================================================================
@@ -216,13 +243,15 @@ def cluster_se(df):
 final_stats = []
 all_data = {}
 total_mfd_fallbacks = 0
+total_mfd_fallback_events = 0
 
 for p in colors.keys():
   print(f"Επεξεργασία περιόδου: {p} (Top-{TOP_N} με SyCLoPS TID)...")
-  df, fb_count = get_storm_centroids(
+  df, fb_count, fb_events = get_storm_centroids(
       p, sub_region=REGION_TO_TEST, top_n=TOP_N
   )
   total_mfd_fallbacks += fb_count
+  total_mfd_fallback_events += fb_events
 
   if not df.empty:
     # Ορίζουμε το event βάσει του TID της SyCLoPS
@@ -270,7 +299,7 @@ if not df_final.empty and len(df_final) == 4:
   )
 
   np.random.seed(42)
-  n_boot = 2000
+  n_boot = N_BOOT
   alpha = 0.05
 
   periods_order = list(colors.keys())
@@ -431,7 +460,7 @@ if not df_final.empty:
       alpha=0.4,
       label=(
           f"Full Trend (1960-2024): {total_shift_full:+.3f}°\n"
-          f"(Block bootstrap p={pval_full_two:.3f})"
+          f"(Block bootstrap p {fmt_p(pval_full_two, 3)})"
       ),
   )
 
@@ -442,7 +471,7 @@ if not df_final.empty:
       linewidth=3,
       label=(
           f"Modern Trend (Post-1976): {total_shift_modern:+.3f}°\n"
-          f"(Block bootstrap p={pval_mod_two:.3f})"
+          f"(Block bootstrap p {fmt_p(pval_mod_two, 3)})"
       ),
   )
 
@@ -533,8 +562,8 @@ if not df_final.empty:
     )
     print(f"  • Τυπικό Σφάλμα Τάσης (SE)    : ±{se_mod_km:.2f} km")
     print(
-        "  • Block Bootstrap p-value     : (H0: Shift = 0) = "
-        f"{pval_mod_two:.4f}"
+        "  • Block Bootstrap p-value     : (H0: Shift = 0) "
+        f"{fmt_p(pval_mod_two)}"
     )
 
     print("\nFULL SHIFT (1960-2024 | Δt κέντρων περιόδων = 48.5 έτη):")
@@ -552,13 +581,14 @@ if not df_final.empty:
     )
     print(f"  • Τυπικό Σφάλμα Τάσης (SE)    : ±{se_full_km:.2f} km")
     print(
-        "  • Block Bootstrap p-value     : (H0: Shift = 0) = "
-        f"{pval_full_two:.4f}"
+        "  • Block Bootstrap p-value     : (H0: Shift = 0) "
+        f"{fmt_p(pval_full_two)}"
     )
     print("=" * 85)
 
-    print(
-        "Περιπτώσεις Fallback σε απόσταση (χωρίς MFD):"
-        f" {total_mfd_fallbacks}"
-    )
-    print("=" * 85)
+  print(
+      "Fallback σε απόσταση (χωρίς MFD):"
+      f" {total_mfd_fallbacks} υποψήφια κέντρα σε"
+      f" {total_mfd_fallback_events} χρονικά βήματα"
+  )
+  print("=" * 85)
