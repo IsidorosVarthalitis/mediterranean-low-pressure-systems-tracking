@@ -4,10 +4,11 @@ An automated, objective computational framework developed in Python examining wh
 
 ## Key Features & Statistical Pipeline
 - **Spatiotemporal Coupling:** Automates matching between ERA5 high-resolution precipitation data and synoptic system tracks points.
-- **Hybrid Score:** Balances spatial distance to Crete with moisture convergence (VIMDF).
-- **Statistical Significance Testing:**
-  - Non-parametric bootstrapping (2,000 iterations) for trend estimation and 95% Confidence Intervals (CI).
-  - Permutation testing (1,000 resamples) for rigorous null-hypothesis validation.
+- **Hybrid Score:** Balances spatial distance to Crete (cos(lat)-corrected) with moisture convergence (VIMDF). Cases where MFD is unavailable fall back to distance only and are counted and reported.
+- **Track-Aware Uncertainty (SyCLoPS Track ID, `TID`):** Consecutive 3-hourly positions of the same cyclone are not independent, so all uncertainty estimates treat each SyCLoPS track as one cluster:
+  - Cluster-robust (CR1) standard error of each period's mean latitude.
+  - Block bootstrap resampling whole tracks (2,000 iterations) for the full (1960–2024) and modern (1976–2024) trends, with 95% Confidence Intervals and two-sided p-values (H0: shift = 0).
+  - Shift rates reported in km/decade.
 
 ---
 
@@ -37,12 +38,12 @@ Plaintext
 │   ├── SyCLoPS_classified_ERA5_1940_2024.parquet
 │   ├── era5_rain_<year>.nc
 │   └── era5_mfd_<year>.nc
-├── track_analysis.py
+├── mediterranean-low-pressure-systems-tracking.py
 ├── requirements.txt
 └── README.md
 
 ##Configuration & Usage
-Key parameters can be adjusted directly in track_analysis.py:
+Key parameters can be adjusted directly in mediterranean-low-pressure-systems-tracking.py:
 
 THRESHOLD_RAIN: Hourly precipitation threshold in mm/h (default: 5).
 
@@ -52,7 +53,7 @@ REGION_TO_TEST: Target spatial domain ("all", "west", or "east" Crete).
 
 ##Execution
 Run the script directly from the terminal or your preferred Python IDE (e.g., Spyder, VS Code):
-python track_analysis.py
+python mediterranean-low-pressure-systems-tracking.py
 
 ##Author & Institutional Affiliation
 Author: Isidoros Varthalitis
