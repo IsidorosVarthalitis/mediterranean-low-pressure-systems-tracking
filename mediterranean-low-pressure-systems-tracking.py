@@ -3,7 +3,7 @@
 
 @author: Isidoros Varthalitis
 
-Universal script for Top-N Cyclone Selection with Block Bootstrap &
+Universal script for Top-N Low-pressure Systems Selection with Block Bootstrap &
 Cluster-Robust Uncertainty Analysis based on SyCLoPS Track ID (TID).
 """
 
@@ -59,7 +59,7 @@ def get_storm_centroids(period_label, sub_region="all", top_n=1):
   ]
 
   if not all_files:
-    print(f"⚠️ Δεν βρέθηκαν αρχεία βροχής για: {period_label}")
+    print(f"Δεν βρέθηκαν αρχεία βροχής για: {period_label}")
     return pd.DataFrame(), 0
 
   rainy_times = []
@@ -92,7 +92,7 @@ def get_storm_centroids(period_label, sub_region="all", top_n=1):
 
   if not rainy_times:
     print(
-        f"⚠️ Δεν βρέθηκαν υετικά γεγονότα > {THRESHOLD_RAIN} mm/h για:"
+        f"Δεν βρέθηκαν υετικά γεγονότα > {THRESHOLD_RAIN} mm/h για:"
         f" {period_label}"
     )
     return pd.DataFrame(), 0
@@ -115,7 +115,7 @@ def get_storm_centroids(period_label, sub_region="all", top_n=1):
   df_c = df_c[(df_c["LAT"].between(28, 42)) & (df_c["LON"].between(18, 32))]
 
   if df_c.empty:
-    print(f"⚠️ Κανένας κυκλώνας εντός ορίων για: {period_label}")
+    print(f"Κανένας κυκλώνας εντός ορίων για: {period_label}")
     return pd.DataFrame(), 0
 
   final_responsible_cyclones = []
@@ -218,7 +218,7 @@ all_data = {}
 total_mfd_fallbacks = 0
 
 for p in colors.keys():
-  print(f"🔄 Επεξεργασία περιόδου: {p} (Top-{TOP_N} με SyCLoPS TID)...")
+  print(f"Επεξεργασία περιόδου: {p} (Top-{TOP_N} με SyCLoPS TID)...")
   df, fb_count = get_storm_centroids(
       p, sub_region=REGION_TO_TEST, top_n=TOP_N
   )
@@ -265,7 +265,7 @@ pval_full_two = np.nan
 
 if not df_final.empty and len(df_final) == 4:
   print(
-      "\n⚡ Εκτέλεση Block Bootstrapping (2.000 επαναλήψεις ανά Track ID)"
+      "\nΕκτέλεση Block Bootstrapping (2.000 επαναλήψεις ανά Track ID)"
       f" για Top-{TOP_N}..."
   )
 
@@ -490,7 +490,7 @@ if not df_final.empty:
   # ==============================================================================
   print("\n" + "=" * 85)
   print(
-      "📊 ΣΤΑΤΙΣΤΙΚΑ CENTROIDS & SE [Clustered by SyCLoPS TID | Κατώφλι:"
+      "ΣΤΑΤΙΣΤΙΚΑ CENTROIDS & SE [Clustered by SyCLoPS TID | Κατώφλι:"
       f" {THRESHOLD_RAIN} mm/h | Top-{TOP_N}]"
   )
   print("=" * 85)
@@ -514,7 +514,7 @@ if not df_final.empty:
 
     print("\n" + "=" * 85)
     print(
-        "📊 ΣΤΑΤΙΣΤΙΚΗ ΕΓΚΥΡΟΤΗΤΑ ΤΑΣΕΩΝ (BOOTSTRAP 2000 RUNS ανά Track ID |"
+        "ΣΤΑΤΙΣΤΙΚΗ ΕΓΚΥΡΟΤΗΤΑ ΤΑΣΕΩΝ (BOOTSTRAP 2000 RUNS ανά Track ID |"
         f" Top-{TOP_N})"
     )
     print("=" * 85)
@@ -558,7 +558,7 @@ if not df_final.empty:
     print("=" * 85)
 
     print(
-        "ℹ️ Περιπτώσεις Fallback σε απόσταση (χωρίς MFD):"
+        "Περιπτώσεις Fallback σε απόσταση (χωρίς MFD):"
         f" {total_mfd_fallbacks}"
     )
     print("=" * 85)
